@@ -1,5 +1,5 @@
-import { describe, it, expect, jest, beforeEach } from "@jest/globals";
-import { SirrClient } from "./index";
+import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { SirrClient, SirrError } from "./index";
 
 const mockFetch = jest.fn<typeof fetch>();
 global.fetch = mockFetch;
@@ -20,16 +20,109 @@ function err(status: number, body: unknown): Response {
   } as unknown as Response;
 }
 
+function errHtml(status: number, html: string): Response {
+  return {
+    ok: false,
+    status,
+    json: () => Promise.reject(new SyntaxError("Unexpected token <")),
+    text: () => Promise.resolve(html),
+  } as unknown as Response;
+}
+
 const sirr = new SirrClient({ server: "http://localhost:8080", token: "test" });
 
-beforeEach(() => { mockFetch.mockReset(); });
+beforeEach(() => {
+  mockFetch.mockReset();
+});
+
+// ── SirrError ──────────────────────────────────────────────
+
+describe("SirrError", () => {
+  it("is exported and instanceof works", () => {
+    const e = new SirrError(500, "boom");
+    expect(e).toBeInstanceOf(SirrError);
+    expect(e).toBeInstanceOf(Error);
+  });
+
+  it("has correct status, message, and name", () => {
+    const e = new SirrError(403, "forbidden");
+    expect(e.status).toBe(403);
+    expect(e.message).toBe("Sirr API error 403: forbidden");
+    expect(e.name).toBe("SirrError");
+  });
+});
+
+// ── Constructor validation ─────────────────────────────────
+
+describe("constructor", () => {
+  it("throws on empty token", () => {
+    expect(() => new SirrClient({ token: "" })).toThrow("non-empty token");
+  });
+
+  it("uses default server when not provided", () => {
+    const c = new SirrClient({ token: "t" });
+    // We can't inspect private fields, but pushing should use the default
+    expect(c).toBeInstanceOf(SirrClient);
+  });
+
+  it("strips trailing slash from server", async () => {
+    const c = new SirrClient({ server: "http://example.com/", token: "t" });
+    mockFetch.mockResolvedValueOnce(ok({ key: "X" }));
+    await c.push("X", "v");
+    const [url] = mockFetch.mock.calls[0] as [string];
+    expect(url).toBe("http://example.com/secrets");
+  });
+});
+
+// ── Key validation ─────────────────────────────────────────
+
+describe("key validation", () => {
+  it("push throws on empty key", async () => {
+    await expect(sirr.push("", "val")).rejects.toThrow("key must not be empty");
+  });
+
+  it("get throws on empty key", async () => {
+    await expect(sirr.get("")).rejects.toThrow("key must not be empty");
+  });
+
+  it("delete throws on empty key", async () => {
+    await expect(sirr.delete("")).rejects.toThrow("key must not be empty");
+  });
+});
+
+// ── Authorization header ───────────────────────────────────
+
+describe("authorization header", () => {
+  it("sends Bearer token on authenticated requests", async () => {
+    mockFetch.mockResolvedValueOnce(ok({ secrets: [] }));
+    await sirr.list();
+    const [, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
+    expect((opts.headers as Record<string, string>).Authorization).toBe("Bearer test");
+  });
+
+  it("does NOT send auth header on health()", async () => {
+    mockFetch.mockResolvedValueOnce(ok({ status: "ok" }));
+    await sirr.health();
+    const [, opts] = mockFetch.mock.calls[0] as [string, RequestInit | undefined];
+    expect(opts?.headers).toBeUndefined();
+  });
+});
+
+// ── health ─────────────────────────────────────────────────
 
 describe("health", () => {
   it("returns status", async () => {
     mockFetch.mockResolvedValueOnce(ok({ status: "ok" }));
     expect(await sirr.health()).toEqual({ status: "ok" });
   });
+
+  it("throws SirrError on non-2xx", async () => {
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 503 } as Response);
+    await expect(sirr.health()).rejects.toThrow(SirrError);
+  });
 });
+
+// ── push ───────────────────────────────────────────────────
 
 describe("push", () => {
   it("sends POST /secrets with correct body", async () => {
@@ -58,6 +151,8 @@ describe("push", () => {
   });
 });
 
+// ── get ────────────────────────────────────────────────────
+
 describe("get", () => {
   it("returns value on 200", async () => {
     mockFetch.mockResolvedValueOnce(ok({ key: "FOO", value: "bar" }));
@@ -82,6 +177,8 @@ describe("get", () => {
   });
 });
 
+// ── list ───────────────────────────────────────────────────
+
 describe("list", () => {
   it("returns secret metadata array", async () => {
     const meta = [
@@ -98,6 +195,8 @@ describe("list", () => {
   });
 });
 
+// ── delete ─────────────────────────────────────────────────
+
 describe("delete", () => {
   it("returns true when secret existed", async () => {
     mockFetch.mockResolvedValueOnce(ok({ deleted: true }));
@@ -110,6 +209,8 @@ describe("delete", () => {
   });
 });
 
+// ── prune ──────────────────────────────────────────────────
+
 describe("prune", () => {
   it("returns pruned count", async () => {
     mockFetch.mockResolvedValueOnce(ok({ pruned: 3 }));
@@ -117,26 +218,16 @@ describe("prune", () => {
   });
 });
 
+// ── pullAll ────────────────────────────────────────────────
+
 describe("pullAll", () => {
   it("lists then fetches each value", async () => {
     mockFetch
       .mockResolvedValueOnce(
         ok({
           secrets: [
-            {
-              key: "A",
-              created_at: 0,
-              expires_at: null,
-              max_reads: null,
-              read_count: 0,
-            },
-            {
-              key: "B",
-              created_at: 0,
-              expires_at: null,
-              max_reads: null,
-              read_count: 0,
-            },
+            { key: "A", created_at: 0, expires_at: null, max_reads: null, read_count: 0 },
+            { key: "B", created_at: 0, expires_at: null, max_reads: null, read_count: 0 },
           ],
         }),
       )
@@ -148,33 +239,29 @@ describe("pullAll", () => {
   });
 });
 
+// ── withSecrets ────────────────────────────────────────────
+
 describe("withSecrets", () => {
   it("injects env vars and restores them after", async () => {
     mockFetch
       .mockResolvedValueOnce(
         ok({
           secrets: [
-            {
-              key: "INJECTED",
-              created_at: 0,
-              expires_at: null,
-              max_reads: null,
-              read_count: 0,
-            },
+            { key: "INJECTED", created_at: 0, expires_at: null, max_reads: null, read_count: 0 },
           ],
         }),
       )
       .mockResolvedValueOnce(ok({ key: "INJECTED", value: "hello" }));
 
-    delete process.env["INJECTED"];
+    delete process.env.INJECTED;
     let inside = "";
 
     await sirr.withSecrets(async () => {
-      inside = process.env["INJECTED"] ?? "";
+      inside = process.env.INJECTED ?? "";
     });
 
     expect(inside).toBe("hello");
-    expect(process.env["INJECTED"]).toBeUndefined();
+    expect(process.env.INJECTED).toBeUndefined();
   });
 
   it("restores env vars even if fn throws", async () => {
@@ -182,25 +269,45 @@ describe("withSecrets", () => {
       .mockResolvedValueOnce(
         ok({
           secrets: [
-            {
-              key: "TEMP",
-              created_at: 0,
-              expires_at: null,
-              max_reads: null,
-              read_count: 0,
-            },
+            { key: "TEMP", created_at: 0, expires_at: null, max_reads: null, read_count: 0 },
           ],
         }),
       )
       .mockResolvedValueOnce(ok({ key: "TEMP", value: "x" }));
 
-    delete process.env["TEMP"];
+    delete process.env.TEMP;
     await expect(
       sirr.withSecrets(async () => {
         throw new Error("boom");
       }),
     ).rejects.toThrow("boom");
 
-    expect(process.env["TEMP"]).toBeUndefined();
+    expect(process.env.TEMP).toBeUndefined();
+  });
+});
+
+// ── Non-JSON error body (nginx 502 etc.) ───────────────────
+
+describe("request() resilience", () => {
+  it("handles HTML error bodies gracefully", async () => {
+    mockFetch.mockResolvedValueOnce(errHtml(502, "<html><body>502 Bad Gateway</body></html>"));
+    await expect(sirr.list()).rejects.toThrow(SirrError);
+    await expect(
+      (async () => {
+        mockFetch.mockResolvedValueOnce(errHtml(502, "<html><body>502 Bad Gateway</body></html>"));
+        try {
+          await sirr.list();
+        } catch (e) {
+          expect((e as SirrError).status).toBe(502);
+          expect((e as SirrError).message).toContain("502");
+          throw e;
+        }
+      })(),
+    ).rejects.toThrow();
+  });
+
+  it("network error propagates", async () => {
+    mockFetch.mockRejectedValueOnce(new TypeError("fetch failed"));
+    await expect(sirr.list()).rejects.toThrow("fetch failed");
   });
 });

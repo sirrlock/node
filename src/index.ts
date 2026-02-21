@@ -27,7 +27,7 @@ export interface SecretMeta {
   read_count: number;
 }
 
-class SirrError extends Error {
+export class SirrError extends Error {
   constructor(
     public readonly status: number,
     message: string,
@@ -37,11 +37,20 @@ class SirrError extends Error {
   }
 }
 
+function validateKey(key: string): void {
+  if (!key) {
+    throw new Error("Secret key must not be empty");
+  }
+}
+
 export class SirrClient {
   private readonly server: string;
   private readonly token: string;
 
   constructor(opts: SirrClientOptions) {
+    if (!opts.token) {
+      throw new Error("SirrClient requires a non-empty token");
+    }
     this.server = (opts.server ?? "http://localhost:8080").replace(/\/$/, "");
     this.token = opts.token;
   }
@@ -53,32 +62,38 @@ export class SirrClient {
     };
   }
 
-  private async request<T>(
-    method: string,
-    path: string,
-    body?: unknown,
-  ): Promise<T> {
+  private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
     const res = await fetch(`${this.server}${path}`, {
       method,
       headers: this.headers(),
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
 
-    const json = (await res.json()) as Record<string, unknown>;
-
     if (!res.ok) {
-      throw new SirrError(
-        res.status,
-        (json["error"] as string) ?? "unknown error",
-      );
+      let message = "unknown error";
+      try {
+        const json = (await res.json()) as Record<string, unknown>;
+        message = (json.error as string) ?? message;
+      } catch {
+        try {
+          const text = await res.text();
+          if (text) message = text.slice(0, 200);
+        } catch {
+          // body already consumed or unreadable — keep default message
+        }
+      }
+      throw new SirrError(res.status, message);
     }
 
-    return json as T;
+    return (await res.json()) as T;
   }
 
   /** Check server health. Does not require authentication. */
   async health(): Promise<{ status: string }> {
     const res = await fetch(`${this.server}/health`);
+    if (!res.ok) {
+      throw new SirrError(res.status, "health check failed");
+    }
     return res.json() as Promise<{ status: string }>;
   }
 
@@ -90,6 +105,7 @@ export class SirrClient {
    * @param opts  TTL (seconds) and/or max read count
    */
   async push(key: string, value: string, opts: PushOptions = {}): Promise<void> {
+    validateKey(key);
     await this.request("POST", "/secrets", {
       key,
       value,
@@ -103,6 +119,7 @@ export class SirrClient {
    * Returns `null` if the secret does not exist or has expired/burned.
    */
   async get(key: string): Promise<string | null> {
+    validateKey(key);
     try {
       const data = await this.request<{ value: string }>(
         "GET",
@@ -117,15 +134,13 @@ export class SirrClient {
 
   /** List metadata for all active secrets. Values are never returned. */
   async list(): Promise<SecretMeta[]> {
-    const data = await this.request<{ secrets: SecretMeta[] }>(
-      "GET",
-      "/secrets",
-    );
+    const data = await this.request<{ secrets: SecretMeta[] }>("GET", "/secrets");
     return data.secrets;
   }
 
   /** Delete a secret immediately. Returns true if it existed. */
   async delete(key: string): Promise<boolean> {
+    validateKey(key);
     try {
       await this.request("DELETE", `/secrets/${encodeURIComponent(key)}`);
       return true;

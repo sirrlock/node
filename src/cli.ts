@@ -7,10 +7,10 @@
 
 import { SirrClient } from "./index";
 
-const server = process.env["SIRR_SERVER"] ?? "http://localhost:8080";
-const token = process.env["SIRR_TOKEN"] ?? "";
+const server = process.env.SIRR_SERVER ?? "http://localhost:8080";
+const token = process.env.SIRR_TOKEN ?? "";
 
-function usage(): void {
+function usage(): never {
   console.error(`
 Usage: sirr <command> [options]
 
@@ -29,11 +29,11 @@ Environment:
   process.exit(1);
 }
 
-function parseArgs(argv: string[]): Record<string, string | number | boolean> {
+export function parseArgs(argv: string[]): Record<string, string | number | boolean> {
   const result: Record<string, string | number | boolean> = {};
   const positional: string[] = [];
   for (let i = 0; i < argv.length; i++) {
-    const arg = argv[i]!;
+    const arg = argv[i] as string;
     if (arg.startsWith("--")) {
       const key = arg.slice(2);
       const next = argv[i + 1];
@@ -48,7 +48,7 @@ function parseArgs(argv: string[]): Record<string, string | number | boolean> {
       result[`_${positional.length - 1}`] = arg;
     }
   }
-  result["_count"] = positional.length;
+  result._count = positional.length;
   return result;
 }
 
@@ -68,30 +68,30 @@ async function main() {
       }
 
       case "push": {
-        const target = args["_0"] as string | undefined;
+        const target = args._0 as string | undefined;
         if (!target) usage();
-        const ttlArg = args["ttl"] as string | undefined;
-        const readsArg = args["reads"] as string | undefined;
+        const ttlArg = args.ttl as string | undefined;
+        const readsArg = args.reads as string | undefined;
 
-        if (!target!.includes("=")) {
+        if (!target.includes("=")) {
           console.error("push: expected KEY=value");
           process.exit(1);
         }
-        const eqIdx = target!.indexOf("=");
-        const key = target!.slice(0, eqIdx);
-        const value = target!.slice(eqIdx + 1);
+        const eqIdx = target.indexOf("=");
+        const key = target.slice(0, eqIdx);
+        const value = target.slice(eqIdx + 1);
         await client.push(key, value, {
-          ttl: ttlArg ? parseInt(ttlArg, 10) : undefined,
-          reads: readsArg ? parseInt(readsArg, 10) : undefined,
+          ttl: ttlArg ? Number.parseInt(ttlArg, 10) : undefined,
+          reads: readsArg ? Number.parseInt(readsArg, 10) : undefined,
         });
         console.log(`✓ pushed ${key}`);
         break;
       }
 
       case "get": {
-        const key = args["_0"] as string | undefined;
+        const key = args._0 as string | undefined;
         if (!key) usage();
-        const value = await client.get(key!);
+        const value = await client.get(key);
         if (value === null) {
           console.error("not found or expired");
           process.exit(1);
@@ -115,9 +115,9 @@ async function main() {
       }
 
       case "delete": {
-        const key = args["_0"] as string | undefined;
+        const key = args._0 as string | undefined;
         if (!key) usage();
-        const existed = await client.delete(key!);
+        const existed = await client.delete(key);
         console.log(existed ? `✓ deleted ${key}` : "not found");
         break;
       }
@@ -137,4 +137,6 @@ async function main() {
   }
 }
 
-main();
+if (require.main === module) {
+  main();
+}

@@ -3,12 +3,34 @@
   "version": "0.1.0",
   "description": "Sirr (سر) — Node.js client and npx CLI for the ephemeral secret vault",
   "license": "MIT",
+  "author": "SirrVault",
+  "homepage": "https://github.com/SirrVault/node#readme",
   "repository": {
     "type": "git",
     "url": "https://github.com/SirrVault/node"
   },
+  "bugs": {
+    "url": "https://github.com/SirrVault/node/issues"
+  },
+  "keywords": [
+    "sirr",
+    "secrets",
+    "ephemeral",
+    "vault",
+    "secret-management",
+    "burn-after-reading",
+    "ai-agents",
+    "mcp"
+  ],
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
   "bin": {
     "sirr": "dist/cli.js"
   },
@@ -19,13 +41,16 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "test": "jest",
-    "prepublishOnly": "npm run build"
+    "lint": "biome check src/",
+    "lint:fix": "biome check --write src/",
+    "prepublishOnly": "npm run lint && npm run build && npm test"
   },
   "engines": {
     "node": ">=18"
   },
   "dependencies": {},
   "devDependencies": {
+    "@biomejs/biome": "^1.9.0",
     "@jest/globals": "^30.0.0",
     "@types/node": "^20.0.0",
     "jest": "^30.0.0",
@@ -36,9 +61,5 @@
     "preset": "ts-jest",
     "testEnvironment": "node",
     "testPathIgnorePatterns": ["/node_modules/", "/dist/"]
-  },
-  "overrides": {
-    "minimatch": "^10.2.1",
-    "glob": "^11.0.0"
   }
 }

@@ -1,5 +1,9 @@
 # @sirr/node
 
+[![CI](https://github.com/SirrVault/node/actions/workflows/ci.yml/badge.svg)](https://github.com/SirrVault/node/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/@sirr/node)](https://www.npmjs.com/package/@sirr/node)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 **Node.js client and npx CLI for [Sirr](https://github.com/SirrVault/sirr) — ephemeral secret management.**
 
 Give AI agents exactly the credentials they need, for exactly as long as they need them. Read once and it's gone. Expired by time and you never have to clean anything up.
@@ -44,7 +48,7 @@ export SIRR_TOKEN=your-master-key
 ## Programmatic API
 
 ```typescript
-import { SirrClient } from '@sirr/node'
+import { SirrClient, SirrError } from '@sirr/node'
 
 const sirr = new SirrClient({
   server: process.env.SIRR_SERVER ?? 'http://localhost:8080',
@@ -71,6 +75,20 @@ await sirr.delete('API_KEY')
 
 // List active secrets (metadata only — no values)
 const list = await sirr.list()
+```
+
+### Error Handling
+
+```typescript
+import { SirrError } from '@sirr/node'
+
+try {
+  await sirr.push('KEY', 'value')
+} catch (e) {
+  if (e instanceof SirrError) {
+    console.error(`API error ${e.status}: ${e.message}`)
+  }
+}
 ```
 
 ## AI Workflows
