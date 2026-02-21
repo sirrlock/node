@@ -1,39 +1,62 @@
-# @sirr/sdk — Claude Development Guide
+# @sirr/node — Claude Development Guide
 
 ## Purpose
 
-TypeScript fetch wrapper for the Sirr HTTP API. Published to npm as `@sirr/sdk`.
-Thin client — no business logic, no dependencies beyond fetch (Node 18+).
+Node.js client and npx CLI for the Sirr HTTP API.
+Published to npm as `@sirr/node`. Zero production dependencies — uses native `fetch`.
 
-## Planned API Surface
+## What Lives Here
+
+- `src/index.ts` — `SirrClient` class (the library)
+- `src/cli.ts` — CLI entrypoint (`npx @sirr/node push ...`)
+- `src/index.test.ts` — 14 unit tests (all methods, fetch mocked)
+
+## API Surface
 
 ```typescript
 class SirrClient {
-  constructor(opts: { server: string; token: string })
+  constructor(opts: { server?: string; token: string })
 
   push(key: string, value: string, opts?: { ttl?: number; reads?: number }): Promise<void>
-  get(key: string): Promise<string | null>         // null if burned/expired
-  delete(key: string): Promise<void>
+  get(key: string): Promise<string | null>   // null if burned/expired
+  delete(key: string): Promise<boolean>
   list(): Promise<SecretMeta[]>
   pullAll(): Promise<Record<string, string>>
-  withSecrets(fn: () => Promise<void>): Promise<void>
+  withSecrets<T>(fn: () => Promise<T>): Promise<T>
   prune(): Promise<number>
+  health(): Promise<{ status: string }>
 }
 ```
 
 ## Stack
 
-- TypeScript, targeting Node 18+
+- TypeScript, Node 18+
 - Native `fetch` — no axios, no node-fetch
-- `tsup` for bundling (ESM + CJS)
-- `vitest` for tests
+- `tsc` for build (CommonJS output)
+- `jest` + `ts-jest` for tests
 
 ## Key Rules
 
+- `get()` returns `null` on 404 — never throw for not-found
+- All other non-2xx responses throw `SirrError`
 - Never log secret values
-- `get()` returns `null` on 404 — do not throw
-- All methods throw on non-2xx (except 404 for `get`)
-- Keep this package zero-dependency
+- `withSecrets()` must restore original env on exit, even on exception
+- Keep zero production dependencies
+
+## Commands
+
+```bash
+npm install       # install deps
+npm run build     # tsc → dist/
+npm test          # jest (14 tests)
+```
+
+## Relationship to sirr/
+
+This repo was extracted from `sirr/packages/node/`. The MCP server (`@sirr/mcp`)
+remains in the [SirrVault/sirr](https://github.com/SirrVault/sirr) monorepo
+because it is co-released with the server binary. This client has an independent
+release cadence once the HTTP API stabilises.
 
 ## Pre-Commit Checklist
 
