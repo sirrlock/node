@@ -311,3 +311,91 @@ describe("request() resilience", () => {
     await expect(sirr.list()).rejects.toThrow("fetch failed");
   });
 });
+
+// ── getAuditLog ───────────────────────────────────────────
+
+describe("getAuditLog", () => {
+  it("returns audit events", async () => {
+    const events = [
+      { id: 1, timestamp: 1000, action: "secret.create", key: "K", source_ip: "127.0.0.1", success: true, detail: null },
+    ];
+    mockFetch.mockResolvedValueOnce(ok({ events }));
+    expect(await sirr.getAuditLog()).toEqual(events);
+  });
+
+  it("sends query params", async () => {
+    mockFetch.mockResolvedValueOnce(ok({ events: [] }));
+    await sirr.getAuditLog({ since: 100, action: "secret.create", limit: 10 });
+    const [url] = mockFetch.mock.calls[0] as [string];
+    expect(url).toContain("since=100");
+    expect(url).toContain("action=secret.create");
+    expect(url).toContain("limit=10");
+  });
+});
+
+// ── webhooks ──────────────────────────────────────────────
+
+describe("createWebhook", () => {
+  it("sends POST /webhooks", async () => {
+    mockFetch.mockResolvedValueOnce(ok({ id: "wh_1", secret: "s3cr3t" }));
+    const result = await sirr.createWebhook("https://example.com/hook");
+    expect(result).toEqual({ id: "wh_1", secret: "s3cr3t" });
+    const [url, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain("/webhooks");
+    expect(opts.method).toBe("POST");
+  });
+});
+
+describe("listWebhooks", () => {
+  it("returns webhook array", async () => {
+    const webhooks = [{ id: "wh_1", url: "https://example.com", events: ["*"], created_at: 1000 }];
+    mockFetch.mockResolvedValueOnce(ok({ webhooks }));
+    expect(await sirr.listWebhooks()).toEqual(webhooks);
+  });
+});
+
+describe("deleteWebhook", () => {
+  it("returns true on success", async () => {
+    mockFetch.mockResolvedValueOnce(ok({ deleted: true }));
+    expect(await sirr.deleteWebhook("wh_1")).toBe(true);
+  });
+
+  it("returns false on 404", async () => {
+    mockFetch.mockResolvedValueOnce(err(404, { error: "not found" }));
+    expect(await sirr.deleteWebhook("wh_x")).toBe(false);
+  });
+});
+
+// ── API keys ──────────────────────────────────────────────
+
+describe("createApiKey", () => {
+  it("sends POST /keys", async () => {
+    const result = { id: "abc", key: "sirr_key_123", label: "ci", permissions: ["read"], prefix: null };
+    mockFetch.mockResolvedValueOnce(ok(result));
+    const r = await sirr.createApiKey({ label: "ci", permissions: ["read"] });
+    expect(r).toEqual(result);
+    const [url, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain("/keys");
+    expect(opts.method).toBe("POST");
+  });
+});
+
+describe("listApiKeys", () => {
+  it("returns key array", async () => {
+    const keys = [{ id: "abc", label: "ci", permissions: ["read"], prefix: null, created_at: 1000 }];
+    mockFetch.mockResolvedValueOnce(ok({ keys }));
+    expect(await sirr.listApiKeys()).toEqual(keys);
+  });
+});
+
+describe("deleteApiKey", () => {
+  it("returns true on success", async () => {
+    mockFetch.mockResolvedValueOnce(ok({ deleted: true }));
+    expect(await sirr.deleteApiKey("abc")).toBe(true);
+  });
+
+  it("returns false on 404", async () => {
+    mockFetch.mockResolvedValueOnce(err(404, { error: "not found" }));
+    expect(await sirr.deleteApiKey("nope")).toBe(false);
+  });
+});

@@ -21,6 +21,13 @@ Commands:
   delete KEY
   prune
   health
+  audit [--since <ts>] [--action <action>] [--limit <n>]
+  webhooks list
+  webhooks add <url> [--events <csv>]
+  webhooks remove <id>
+  keys list
+  keys create <label> [--permissions <csv>]
+  keys remove <id>
 
 Environment:
   SIRR_SERVER   Server URL (default: http://localhost:8080)
@@ -125,6 +132,104 @@ async function main() {
       case "prune": {
         const n = await client.prune();
         console.log(`pruned ${n} expired secret(s)`);
+        break;
+      }
+
+      case "audit": {
+        const events = await client.getAuditLog({
+          since: args.since ? Number(args.since) : undefined,
+          action: args.action as string | undefined,
+          limit: args.limit ? Number(args.limit) : undefined,
+        });
+        if (events.length === 0) {
+          console.log("(no audit events)");
+        } else {
+          for (const e of events) {
+            console.log(
+              `  [${e.timestamp}] ${e.action} key=${e.key ?? "-"} ip=${e.source_ip} ${e.success ? "ok" : "FAIL"}`,
+            );
+          }
+        }
+        break;
+      }
+
+      case "webhooks": {
+        const sub = args._0 as string | undefined;
+        if (!sub) usage();
+        switch (sub) {
+          case "list": {
+            const wh = await client.listWebhooks();
+            if (wh.length === 0) {
+              console.log("(no webhooks)");
+            } else {
+              for (const w of wh) {
+                console.log(`  ${w.id}  ${w.url}  [${w.events.join(",")}]`);
+              }
+            }
+            break;
+          }
+          case "add": {
+            const url = args._1 as string | undefined;
+            if (!url) usage();
+            const eventsArg = args.events as string | undefined;
+            const events = eventsArg ? eventsArg.split(",") : undefined;
+            const result = await client.createWebhook(url, { events });
+            console.log(`webhook registered`);
+            console.log(`  id:     ${result.id}`);
+            console.log(`  secret: ${result.secret}`);
+            break;
+          }
+          case "remove": {
+            const id = args._1 as string | undefined;
+            if (!id) usage();
+            await client.deleteWebhook(id);
+            console.log(`webhook ${id} removed`);
+            break;
+          }
+          default:
+            usage();
+        }
+        break;
+      }
+
+      case "keys": {
+        const sub = args._0 as string | undefined;
+        if (!sub) usage();
+        switch (sub) {
+          case "list": {
+            const keys = await client.listApiKeys();
+            if (keys.length === 0) {
+              console.log("(no API keys)");
+            } else {
+              for (const k of keys) {
+                console.log(`  ${k.id}  ${k.label}  [${k.permissions.join(",")}]  prefix=${k.prefix ?? "*"}`);
+              }
+            }
+            break;
+          }
+          case "create": {
+            const label = args._1 as string | undefined;
+            if (!label) usage();
+            const permsArg = args.permissions as string | undefined;
+            const permissions = permsArg ? permsArg.split(",") : ["read", "write"];
+            const prefix = args.prefix as string | undefined;
+            const result = await client.createApiKey({ label, permissions, prefix });
+            console.log(`API key created`);
+            console.log(`  id:  ${result.id}`);
+            console.log(`  key: ${result.key}`);
+            console.log(`  (save the key — it won't be shown again)`);
+            break;
+          }
+          case "remove": {
+            const id = args._1 as string | undefined;
+            if (!id) usage();
+            await client.deleteApiKey(id);
+            console.log(`API key ${id} removed`);
+            break;
+          }
+          default:
+            usage();
+        }
         break;
       }
 

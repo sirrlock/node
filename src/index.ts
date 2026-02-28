@@ -1,5 +1,5 @@
 /**
- * @sirr/node — Sirr (سر) Node.js client
+ * @sirr/node — Sirr Node.js client
  *
  * Thin fetch wrapper around the Sirr HTTP API.
  * No native dependencies. Works in Node 18+.
@@ -25,6 +25,57 @@ export interface SecretMeta {
   expires_at: number | null;
   max_reads: number | null;
   read_count: number;
+}
+
+export interface AuditEvent {
+  id: number;
+  timestamp: number;
+  action: string;
+  key: string | null;
+  source_ip: string;
+  success: boolean;
+  detail: string | null;
+}
+
+export interface AuditOptions {
+  since?: number;
+  until?: number;
+  action?: string;
+  limit?: number;
+}
+
+export interface Webhook {
+  id: string;
+  url: string;
+  events: string[];
+  created_at: number;
+}
+
+export interface WebhookCreateResult {
+  id: string;
+  secret: string;
+}
+
+export interface ApiKey {
+  id: string;
+  label: string;
+  permissions: string[];
+  prefix: string | null;
+  created_at: number;
+}
+
+export interface ApiKeyCreateResult {
+  id: string;
+  key: string;
+  label: string;
+  permissions: string[];
+  prefix: string | null;
+}
+
+export interface CreateApiKeyOptions {
+  label: string;
+  permissions: string[];
+  prefix?: string;
 }
 
 export class SirrError extends Error {
@@ -190,6 +241,67 @@ export class SirrClient {
         if (orig === undefined) delete process.env[k];
         else process.env[k] = orig;
       }
+    }
+  }
+
+  /** Query the audit log. */
+  async getAuditLog(opts: AuditOptions = {}): Promise<AuditEvent[]> {
+    const params = new URLSearchParams();
+    if (opts.since != null) params.set("since", String(opts.since));
+    if (opts.until != null) params.set("until", String(opts.until));
+    if (opts.action != null) params.set("action", opts.action);
+    if (opts.limit != null) params.set("limit", String(opts.limit));
+    const qs = params.toString();
+    const data = await this.request<{ events: AuditEvent[] }>(
+      "GET",
+      `/audit${qs ? `?${qs}` : ""}`,
+    );
+    return data.events;
+  }
+
+  /** Register a webhook. Returns the ID and signing secret. */
+  async createWebhook(url: string, opts?: { events?: string[] }): Promise<WebhookCreateResult> {
+    const body: Record<string, unknown> = { url };
+    if (opts?.events) body.events = opts.events;
+    return this.request<WebhookCreateResult>("POST", "/webhooks", body);
+  }
+
+  /** List registered webhooks. Signing secrets are redacted. */
+  async listWebhooks(): Promise<Webhook[]> {
+    const data = await this.request<{ webhooks: Webhook[] }>("GET", "/webhooks");
+    return data.webhooks;
+  }
+
+  /** Delete a webhook by ID. Returns false if not found. */
+  async deleteWebhook(id: string): Promise<boolean> {
+    try {
+      await this.request("DELETE", `/webhooks/${encodeURIComponent(id)}`);
+      return true;
+    } catch (e) {
+      if (e instanceof SirrError && e.status === 404) return false;
+      throw e;
+    }
+  }
+
+  /** Create a scoped API key. The raw key is returned once. */
+  async createApiKey(opts: CreateApiKeyOptions): Promise<ApiKeyCreateResult> {
+    return this.request<ApiKeyCreateResult>("POST", "/keys", opts);
+  }
+
+  /** List all scoped API keys. Key hashes are never returned. */
+  async listApiKeys(): Promise<ApiKey[]> {
+    const data = await this.request<{ keys: ApiKey[] }>("GET", "/keys");
+    return data.keys;
+  }
+
+  /** Delete an API key by ID. Returns false if not found. */
+  async deleteApiKey(id: string): Promise<boolean> {
+    try {
+      await this.request("DELETE", `/keys/${encodeURIComponent(id)}`);
+      return true;
+    } catch (e) {
+      if (e instanceof SirrError && e.status === 404) return false;
+      throw e;
     }
   }
 }
