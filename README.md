@@ -1,7 +1,10 @@
-# @sirr/node
+# @sirrvault/node
 
 [![CI](https://github.com/SirrVault/node/actions/workflows/ci.yml/badge.svg)](https://github.com/SirrVault/node/actions/workflows/ci.yml)
-[![npm](https://img.shields.io/npm/v/@sirr/node)](https://www.npmjs.com/package/@sirr/node)
+[![npm](https://img.shields.io/npm/v/@sirrvault/node)](https://www.npmjs.com/package/@sirrvault/node)
+[![npm downloads](https://img.shields.io/npm/dm/@sirrvault/node)](https://www.npmjs.com/package/@sirrvault/node)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)](https://www.typescriptlang.org/)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](https://nodejs.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 **Node.js client and npx CLI for [Sirr](https://github.com/SirrVault/sirr) — ephemeral secret management.**
@@ -11,13 +14,13 @@ Give AI agents exactly the credentials they need, for exactly as long as they ne
 ## Install
 
 ```bash
-npm install @sirr/node
+npm install @sirrvault/node
 ```
 
 Or use without installing:
 
 ```bash
-npx @sirr/node push DB_URL="postgres://..." --reads 1 --ttl 1h
+npx @sirrvault/node push DB_URL="postgres://..." --reads 1 --ttl 1h
 ```
 
 ## CLI
@@ -48,7 +51,7 @@ export SIRR_TOKEN=your-master-key
 ## Programmatic API
 
 ```typescript
-import { SirrClient, SirrError } from '@sirr/node'
+import { SirrClient, SirrError } from '@sirrvault/node'
 
 const sirr = new SirrClient({
   server: process.env.SIRR_SERVER ?? 'http://localhost:8080',
@@ -80,7 +83,7 @@ const list = await sirr.list()
 ### Error Handling
 
 ```typescript
-import { SirrError } from '@sirr/node'
+import { SirrError } from '@sirrvault/node'
 
 try {
   await sirr.push('KEY', 'value')
@@ -138,8 +141,11 @@ beforeAll(async () => {
 
 ## Related
 
-- [SirrVault/sirr](https://github.com/SirrVault/sirr) — server
-- [SirrVault/sirr/packages/mcp](https://github.com/SirrVault/sirr/tree/main/packages/mcp) — MCP server for Claude Code
-- [SirrVault/python](https://github.com/SirrVault/python) — Python client
-- [SirrVault/dotnet](https://github.com/SirrVault/dotnet) — .NET client
-- [SirrVault/cli](https://github.com/SirrVault/cli) — native CLI
+| Package | Description |
+|---------|-------------|
+| [sirr](https://github.com/SirrVault/sirr) | Rust monorepo: `sirrd` server + `sirr` CLI |
+| [@sirrvault/mcp](https://github.com/SirrVault/mcp) | MCP server for AI assistants |
+| [sirr (PyPI)](https://github.com/SirrVault/python) | Python SDK |
+| [Sirr.Client (NuGet)](https://github.com/SirrVault/dotnet) | .NET SDK |
+| [sirr.dev](https://sirr.dev) | Documentation |
+| [sirrlock.com](https://sirrlock.com) | Managed cloud + license keys |
