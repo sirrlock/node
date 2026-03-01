@@ -32,33 +32,33 @@ jobs:
           npm version "$VER" --no-git-tag-version
           echo "VERSION=$VER" >> "$GITHUB_ENV"
 
-      # ── @sirr/node (SDK + CLI) ──────────────────────────────────────────────
+      # ── @sirrvault/node (SDK + CLI) ──────────────────────────────────────────────
 
-      - name: Check if @sirr/node version already published
+      - name: Check if @sirrvault/node version already published
         id: node-check
         run: |
-          if npm view "@sirr/node@${VERSION}" version 2>/dev/null; then
+          if npm view "@sirrvault/node@${VERSION}" version 2>/dev/null; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Publish @sirr/node
+      - name: Publish @sirrvault/node
         if: steps.node-check.outputs.skip == 'false'
         run: npm publish --access public --provenance
 
-      # ── sirr (bundled CLI, unscoped) ─────────────────────────────────────────
+      # ── @sirrvault/sirr (bundled CLI) ────────────────────────────────────────
 
-      - name: Check if sirr version already published
+      - name: Check if @sirrvault/sirr version already published
         id: sirr-check
         run: |
-          if npm view "sirr@${VERSION}" version 2>/dev/null; then
+          if npm view "@sirrvault/sirr@${VERSION}" version 2>/dev/null; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Bundle CLI for sirr package
+      - name: Bundle CLI for @sirrvault/sirr package
         if: steps.sirr-check.outputs.skip == 'false'
         run: |
           mkdir -p sirr-pkg
@@ -68,9 +68,9 @@ jobs:
             --outfile=sirr-pkg/cli.js
           cat > sirr-pkg/package.json << EOF
           {
-            "name": "sirr",
+            "name": "@sirrvault/sirr",
             "version": "${VERSION}",
-            "description": "Sirr ephemeral secret vault — CLI (npx sirr push KEY=value)",
+            "description": "Sirr ephemeral secret vault — CLI (npx @sirrvault/sirr push KEY=value)",
             "license": "MIT",
             "bin": { "sirr": "./cli.js" },
             "engines": { "node": ">=18" },
@@ -80,7 +80,7 @@ jobs:
           }
           EOF
 
-      - name: Publish sirr
+      - name: Publish @sirrvault/sirr
         if: steps.sirr-check.outputs.skip == 'false'
         run: npm publish --access public --provenance
         working-directory: sirr-pkg

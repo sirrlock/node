@@ -1,5 +1,5 @@
 /**
- * @sirr/node — Sirr Node.js client
+ * @sirrvault/node — Sirr Node.js client
  *
  * Thin fetch wrapper around the Sirr HTTP API.
  * No native dependencies. Works in Node 18+.
@@ -252,10 +252,7 @@ export class SirrClient {
     if (opts.action != null) params.set("action", opts.action);
     if (opts.limit != null) params.set("limit", String(opts.limit));
     const qs = params.toString();
-    const data = await this.request<{ events: AuditEvent[] }>(
-      "GET",
-      `/audit${qs ? `?${qs}` : ""}`,
-    );
+    const data = await this.request<{ events: AuditEvent[] }>("GET", `/audit${qs ? `?${qs}` : ""}`);
     return data.events;
   }
 

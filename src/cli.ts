@@ -174,7 +174,7 @@ async function main() {
             const eventsArg = args.events as string | undefined;
             const events = eventsArg ? eventsArg.split(",") : undefined;
             const result = await client.createWebhook(url, { events });
-            console.log(`webhook registered`);
+            console.log("webhook registered");
             console.log(`  id:     ${result.id}`);
             console.log(`  secret: ${result.secret}`);
             break;
@@ -202,7 +202,9 @@ async function main() {
               console.log("(no API keys)");
             } else {
               for (const k of keys) {
-                console.log(`  ${k.id}  ${k.label}  [${k.permissions.join(",")}]  prefix=${k.prefix ?? "*"}`);
+                console.log(
+                  `  ${k.id}  ${k.label}  [${k.permissions.join(",")}]  prefix=${k.prefix ?? "*"}`,
+                );
               }
             }
             break;
@@ -214,7 +216,7 @@ async function main() {
             const permissions = permsArg ? permsArg.split(",") : ["read", "write"];
             const prefix = args.prefix as string | undefined;
             const result = await client.createApiKey({ label, permissions, prefix });
-            console.log(`API key created`);
+            console.log("API key created");
             console.log(`  id:  ${result.id}`);
             console.log(`  key: ${result.key}`);
             console.log(`  (save the key — it won't be shown again)`);

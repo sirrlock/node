@@ -317,7 +317,15 @@ describe("request() resilience", () => {
 describe("getAuditLog", () => {
   it("returns audit events", async () => {
     const events = [
-      { id: 1, timestamp: 1000, action: "secret.create", key: "K", source_ip: "127.0.0.1", success: true, detail: null },
+      {
+        id: 1,
+        timestamp: 1000,
+        action: "secret.create",
+        key: "K",
+        source_ip: "127.0.0.1",
+        success: true,
+        detail: null,
+      },
     ];
     mockFetch.mockResolvedValueOnce(ok({ events }));
     expect(await sirr.getAuditLog()).toEqual(events);
@@ -370,7 +378,13 @@ describe("deleteWebhook", () => {
 
 describe("createApiKey", () => {
   it("sends POST /keys", async () => {
-    const result = { id: "abc", key: "sirr_key_123", label: "ci", permissions: ["read"], prefix: null };
+    const result = {
+      id: "abc",
+      key: "sirr_key_123",
+      label: "ci",
+      permissions: ["read"],
+      prefix: null,
+    };
     mockFetch.mockResolvedValueOnce(ok(result));
     const r = await sirr.createApiKey({ label: "ci", permissions: ["read"] });
     expect(r).toEqual(result);
@@ -382,7 +396,9 @@ describe("createApiKey", () => {
 
 describe("listApiKeys", () => {
   it("returns key array", async () => {
-    const keys = [{ id: "abc", label: "ci", permissions: ["read"], prefix: null, created_at: 1000 }];
+    const keys = [
+      { id: "abc", label: "ci", permissions: ["read"], prefix: null, created_at: 1000 },
+    ];
     mockFetch.mockResolvedValueOnce(ok({ keys }));
     expect(await sirr.listApiKeys()).toEqual(keys);
   });

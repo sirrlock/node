@@ -1,13 +1,13 @@
 # @sirrvault/node
 
-[![CI](https://github.com/SirrVault/node/actions/workflows/ci.yml/badge.svg)](https://github.com/SirrVault/node/actions/workflows/ci.yml)
+[![CI](https://github.com/sirrlock/node/actions/workflows/ci.yml/badge.svg)](https://github.com/sirrlock/node/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/@sirrvault/node)](https://www.npmjs.com/package/@sirrvault/node)
 [![npm downloads](https://img.shields.io/npm/dm/@sirrvault/node)](https://www.npmjs.com/package/@sirrvault/node)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](https://nodejs.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**Node.js client and npx CLI for [Sirr](https://github.com/SirrVault/sirr) — ephemeral secret management.**
+**Node.js client and npx CLI for [Sirr](https://github.com/sirrlock/sirr) — ephemeral secret management.**
 
 Give AI agents exactly the credentials they need, for exactly as long as they need them. Read once and it's gone. Expired by time and you never have to clean anything up.
 
@@ -143,9 +143,9 @@ beforeAll(async () => {
 
 | Package | Description |
 |---------|-------------|
-| [sirr](https://github.com/SirrVault/sirr) | Rust monorepo: `sirrd` server + `sirr` CLI |
-| [@sirrvault/mcp](https://github.com/SirrVault/mcp) | MCP server for AI assistants |
-| [sirr (PyPI)](https://github.com/SirrVault/python) | Python SDK |
-| [Sirr.Client (NuGet)](https://github.com/SirrVault/dotnet) | .NET SDK |
+| [sirr](https://github.com/sirrlock/sirr) | Rust monorepo: `sirrd` server + `sirr` CLI |
+| [@sirrvault/mcp](https://github.com/sirrlock/mcp) | MCP server for AI assistants |
+| [sirr (PyPI)](https://github.com/sirrlock/python) | Python SDK |
+| [Sirr.Client (NuGet)](https://github.com/sirrlock/dotnet) | .NET SDK |
 | [sirr.dev](https://sirr.dev) | Documentation |
 | [sirrlock.com](https://sirrlock.com) | Managed cloud + license keys |
