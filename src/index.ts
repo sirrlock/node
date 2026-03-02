@@ -10,6 +10,8 @@ export interface SirrClientOptions {
   server?: string;
   /** Bearer token (SIRR_MASTER_KEY on the server side). */
   token: string;
+  /** Org slug for multi-tenant mode. When set, all resource paths are prefixed with /orgs/{org}. */
+  org?: string;
 }
 
 export interface PushOptions {
@@ -97,6 +99,7 @@ function validateKey(key: string): void {
 export class SirrClient {
   private readonly server: string;
   private readonly token: string;
+  private readonly org?: string;
 
   constructor(opts: SirrClientOptions) {
     if (!opts.token) {
@@ -104,6 +107,25 @@ export class SirrClient {
     }
     this.server = (opts.server ?? "http://localhost:8080").replace(/\/$/, "");
     this.token = opts.token;
+    this.org = opts.org;
+  }
+
+  private secretsPath(key?: string): string {
+    const base = this.org ? `/orgs/${encodeURIComponent(this.org)}/secrets` : "/secrets";
+    return key ? `${base}/${encodeURIComponent(key)}` : base;
+  }
+
+  private auditPath(): string {
+    return this.org ? `/orgs/${encodeURIComponent(this.org)}/audit` : "/audit";
+  }
+
+  private webhooksPath(id?: string): string {
+    const base = this.org ? `/orgs/${encodeURIComponent(this.org)}/webhooks` : "/webhooks";
+    return id ? `${base}/${encodeURIComponent(id)}` : base;
+  }
+
+  private prunePath(): string {
+    return this.org ? `/orgs/${encodeURIComponent(this.org)}/prune` : "/prune";
   }
 
   private headers(): Record<string, string> {
@@ -157,7 +179,7 @@ export class SirrClient {
    */
   async push(key: string, value: string, opts: PushOptions = {}): Promise<void> {
     validateKey(key);
-    await this.request("POST", "/secrets", {
+    await this.request("POST", this.secretsPath(), {
       key,
       value,
       ttl_seconds: opts.ttl ?? null,
@@ -174,7 +196,7 @@ export class SirrClient {
     try {
       const data = await this.request<{ value: string }>(
         "GET",
-        `/secrets/${encodeURIComponent(key)}`,
+        this.secretsPath(key),
       );
       return data.value;
     } catch (e) {
@@ -185,7 +207,7 @@ export class SirrClient {
 
   /** List metadata for all active secrets. Values are never returned. */
   async list(): Promise<SecretMeta[]> {
-    const data = await this.request<{ secrets: SecretMeta[] }>("GET", "/secrets");
+    const data = await this.request<{ secrets: SecretMeta[] }>("GET", this.secretsPath());
     return data.secrets;
   }
 
@@ -193,7 +215,7 @@ export class SirrClient {
   async delete(key: string): Promise<boolean> {
     validateKey(key);
     try {
-      await this.request("DELETE", `/secrets/${encodeURIComponent(key)}`);
+      await this.request("DELETE", this.secretsPath(key));
       return true;
     } catch (e) {
       if (e instanceof SirrError && e.status === 404) return false;
@@ -219,7 +241,7 @@ export class SirrClient {
 
   /** Trigger an immediate sweep of expired secrets on the server. */
   async prune(): Promise<number> {
-    const data = await this.request<{ pruned: number }>("POST", "/prune");
+    const data = await this.request<{ pruned: number }>("POST", this.prunePath());
     return data.pruned;
   }
 
@@ -252,7 +274,7 @@ export class SirrClient {
     if (opts.action != null) params.set("action", opts.action);
     if (opts.limit != null) params.set("limit", String(opts.limit));
     const qs = params.toString();
-    const data = await this.request<{ events: AuditEvent[] }>("GET", `/audit${qs ? `?${qs}` : ""}`);
+    const data = await this.request<{ events: AuditEvent[] }>("GET", `${this.auditPath()}${qs ? `?${qs}` : ""}`);
     return data.events;
   }
 
@@ -260,19 +282,19 @@ export class SirrClient {
   async createWebhook(url: string, opts?: { events?: string[] }): Promise<WebhookCreateResult> {
     const body: Record<string, unknown> = { url };
     if (opts?.events) body.events = opts.events;
-    return this.request<WebhookCreateResult>("POST", "/webhooks", body);
+    return this.request<WebhookCreateResult>("POST", this.webhooksPath(), body);
   }
 
   /** List registered webhooks. Signing secrets are redacted. */
   async listWebhooks(): Promise<Webhook[]> {
-    const data = await this.request<{ webhooks: Webhook[] }>("GET", "/webhooks");
+    const data = await this.request<{ webhooks: Webhook[] }>("GET", this.webhooksPath());
     return data.webhooks;
   }
 
   /** Delete a webhook by ID. Returns false if not found. */
   async deleteWebhook(id: string): Promise<boolean> {
     try {
-      await this.request("DELETE", `/webhooks/${encodeURIComponent(id)}`);
+      await this.request("DELETE", this.webhooksPath(id));
       return true;
     } catch (e) {
       if (e instanceof SirrError && e.status === 404) return false;
@@ -300,5 +322,80 @@ export class SirrClient {
       if (e instanceof SirrError && e.status === 404) return false;
       throw e;
     }
+  }
+
+  // ── /me endpoints ─────────────────────────────────────────
+
+  /** Get the current principal's profile. */
+  async me(): Promise<any> {
+    return this.request("GET", "/me");
+  }
+
+  /** Update the current principal's profile. */
+  async updateMe(body: Record<string, unknown>): Promise<any> {
+    return this.request("PATCH", "/me", body);
+  }
+
+  /** Create a new API key for the current principal. */
+  async createKey(body: Record<string, unknown>): Promise<any> {
+    return this.request("POST", "/me/keys", body);
+  }
+
+  /** Delete an API key belonging to the current principal. */
+  async deleteKey(keyId: string): Promise<void> {
+    await this.request("DELETE", `/me/keys/${encodeURIComponent(keyId)}`);
+  }
+
+  // ── Admin endpoints (master key only) ─────────────────────
+
+  /** Create an org. */
+  async createOrg(body: Record<string, unknown>): Promise<any> {
+    return this.request("POST", "/orgs", body);
+  }
+
+  /** List all orgs. */
+  async listOrgs(): Promise<any> {
+    return this.request("GET", "/orgs");
+  }
+
+  /** Delete an org by ID. */
+  async deleteOrg(orgId: string): Promise<void> {
+    await this.request("DELETE", `/orgs/${encodeURIComponent(orgId)}`);
+  }
+
+  /** Create a principal within an org. */
+  async createPrincipal(orgId: string, body: Record<string, unknown>): Promise<any> {
+    return this.request("POST", `/orgs/${encodeURIComponent(orgId)}/principals`, body);
+  }
+
+  /** List principals within an org. */
+  async listPrincipals(orgId: string): Promise<any> {
+    return this.request("GET", `/orgs/${encodeURIComponent(orgId)}/principals`);
+  }
+
+  /** Delete a principal within an org. */
+  async deletePrincipal(orgId: string, principalId: string): Promise<void> {
+    await this.request(
+      "DELETE",
+      `/orgs/${encodeURIComponent(orgId)}/principals/${encodeURIComponent(principalId)}`,
+    );
+  }
+
+  /** Create a role within an org. */
+  async createRole(orgId: string, body: Record<string, unknown>): Promise<any> {
+    return this.request("POST", `/orgs/${encodeURIComponent(orgId)}/roles`, body);
+  }
+
+  /** List roles within an org. */
+  async listRoles(orgId: string): Promise<any> {
+    return this.request("GET", `/orgs/${encodeURIComponent(orgId)}/roles`);
+  }
+
+  /** Delete a role within an org. */
+  async deleteRole(orgId: string, roleName: string): Promise<void> {
+    await this.request(
+      "DELETE",
+      `/orgs/${encodeURIComponent(orgId)}/roles/${encodeURIComponent(roleName)}`,
+    );
   }
 }

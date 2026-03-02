@@ -80,6 +80,58 @@ await sirr.delete('API_KEY')
 const list = await sirr.list()
 ```
 
+### Multi-Tenant / Org Mode
+
+When working with a multi-tenant Sirr server, pass an `org` slug to scope all
+secret, audit, webhook, and prune operations under that org:
+
+```typescript
+const sirr = new SirrClient({
+  server: 'http://localhost:8080',
+  token: process.env.SIRR_TOKEN!,
+  org: 'acme',   // all paths become /orgs/acme/...
+})
+
+// These now hit /orgs/acme/secrets, /orgs/acme/audit, etc.
+await sirr.push('DB_URL', 'postgres://...', { reads: 1 })
+const secrets = await sirr.list()
+const events = await sirr.getAuditLog()
+```
+
+Without `org`, the client behaves exactly as before (`/secrets`, `/audit`, etc.).
+
+#### /me endpoints
+
+Manage the current principal's profile and API keys:
+
+```typescript
+const profile = await sirr.me()                        // GET /me
+await sirr.updateMe({ name: 'alice' })                 // PATCH /me
+const key = await sirr.createKey({ label: 'ci' })      // POST /me/keys
+await sirr.deleteKey(key.id)                            // DELETE /me/keys/{id}
+```
+
+#### Admin endpoints (master key only)
+
+Manage orgs, principals, and roles:
+
+```typescript
+// Orgs
+await sirr.createOrg({ slug: 'acme' })     // POST /orgs
+await sirr.listOrgs()                       // GET /orgs
+await sirr.deleteOrg('org_1')               // DELETE /orgs/{orgId}
+
+// Principals
+await sirr.createPrincipal('org_1', { name: 'alice', role: 'admin' })
+await sirr.listPrincipals('org_1')
+await sirr.deletePrincipal('org_1', 'p_1')
+
+// Roles
+await sirr.createRole('org_1', { name: 'reader', permissions: ['read'] })
+await sirr.listRoles('org_1')
+await sirr.deleteRole('org_1', 'reader')
+```
+
 ### Error Handling
 
 ```typescript
