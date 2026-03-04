@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-#!/usr/bin/env node
+#\!/usr/bin/env node
 "use strict";
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
@@ -44,8 +44,23 @@ var SirrClient = class {
     if (!opts.token) {
       throw new Error("SirrClient requires a non-empty token");
     }
-    this.server = (opts.server ?? "http://localhost:8080").replace(/\/$/, "");
+    this.server = (opts.server ?? "http://localhost:39999").replace(/\/$/, "");
     this.token = opts.token;
+    this.org = opts.org;
+  }
+  secretsPath(key) {
+    const base = this.org ? `/orgs/${encodeURIComponent(this.org)}/secrets` : "/secrets";
+    return key ? `${base}/${encodeURIComponent(key)}` : base;
+  }
+  auditPath() {
+    return this.org ? `/orgs/${encodeURIComponent(this.org)}/audit` : "/audit";
+  }
+  webhooksPath(id) {
+    const base = this.org ? `/orgs/${encodeURIComponent(this.org)}/webhooks` : "/webhooks";
+    return id ? `${base}/${encodeURIComponent(id)}` : base;
+  }
+  prunePath() {
+    return this.org ? `/orgs/${encodeURIComponent(this.org)}/prune` : "/prune";
   }
   headers() {
     return {
@@ -92,7 +107,7 @@ var SirrClient = class {
    */
   async push(key, value, opts = {}) {
     validateKey(key);
-    await this.request("POST", "/secrets", {
+    await this.request("POST", this.secretsPath(), {
       key,
       value,
       ttl_seconds: opts.ttl ?? null,
@@ -108,7 +123,7 @@ var SirrClient = class {
     try {
       const data = await this.request(
         "GET",
-        `/secrets/${encodeURIComponent(key)}`
+        this.secretsPath(key)
       );
       return data.value;
     } catch (e) {
@@ -118,14 +133,14 @@ var SirrClient = class {
   }
   /** List metadata for all active secrets. Values are never returned. */
   async list() {
-    const data = await this.request("GET", "/secrets");
+    const data = await this.request("GET", this.secretsPath());
     return data.secrets;
   }
   /** Delete a secret immediately. Returns true if it existed. */
   async delete(key) {
     validateKey(key);
     try {
-      await this.request("DELETE", `/secrets/${encodeURIComponent(key)}`);
+      await this.request("DELETE", this.secretsPath(key));
       return true;
     } catch (e) {
       if (e instanceof SirrError && e.status === 404) return false;
@@ -149,7 +164,7 @@ var SirrClient = class {
   }
   /** Trigger an immediate sweep of expired secrets on the server. */
   async prune() {
-    const data = await this.request("POST", "/prune");
+    const data = await this.request("POST", this.prunePath());
     return data.pruned;
   }
   /**
@@ -180,24 +195,24 @@ var SirrClient = class {
     if (opts.action != null) params.set("action", opts.action);
     if (opts.limit != null) params.set("limit", String(opts.limit));
     const qs = params.toString();
-    const data = await this.request("GET", `/audit${qs ? `?${qs}` : ""}`);
+    const data = await this.request("GET", `${this.auditPath()}${qs ? `?${qs}` : ""}`);
     return data.events;
   }
   /** Register a webhook. Returns the ID and signing secret. */
   async createWebhook(url, opts) {
     const body = { url };
     if (opts?.events) body.events = opts.events;
-    return this.request("POST", "/webhooks", body);
+    return this.request("POST", this.webhooksPath(), body);
   }
   /** List registered webhooks. Signing secrets are redacted. */
   async listWebhooks() {
-    const data = await this.request("GET", "/webhooks");
+    const data = await this.request("GET", this.webhooksPath());
     return data.webhooks;
   }
   /** Delete a webhook by ID. Returns false if not found. */
   async deleteWebhook(id) {
     try {
-      await this.request("DELETE", `/webhooks/${encodeURIComponent(id)}`);
+      await this.request("DELETE", this.webhooksPath(id));
       return true;
     } catch (e) {
       if (e instanceof SirrError && e.status === 404) return false;
@@ -223,10 +238,70 @@ var SirrClient = class {
       throw e;
     }
   }
+  // ── /me endpoints ─────────────────────────────────────────
+  /** Get the current principal's profile. */
+  async me() {
+    return this.request("GET", "/me");
+  }
+  /** Update the current principal's profile. */
+  async updateMe(body) {
+    return this.request("PATCH", "/me", body);
+  }
+  /** Create a new API key for the current principal. */
+  async createKey(body) {
+    return this.request("POST", "/me/keys", body);
+  }
+  /** Delete an API key belonging to the current principal. */
+  async deleteKey(keyId) {
+    await this.request("DELETE", `/me/keys/${encodeURIComponent(keyId)}`);
+  }
+  // ── Admin endpoints (master key only) ─────────────────────
+  /** Create an org. */
+  async createOrg(body) {
+    return this.request("POST", "/orgs", body);
+  }
+  /** List all orgs. */
+  async listOrgs() {
+    return this.request("GET", "/orgs");
+  }
+  /** Delete an org by ID. */
+  async deleteOrg(orgId) {
+    await this.request("DELETE", `/orgs/${encodeURIComponent(orgId)}`);
+  }
+  /** Create a principal within an org. */
+  async createPrincipal(orgId, body) {
+    return this.request("POST", `/orgs/${encodeURIComponent(orgId)}/principals`, body);
+  }
+  /** List principals within an org. */
+  async listPrincipals(orgId) {
+    return this.request("GET", `/orgs/${encodeURIComponent(orgId)}/principals`);
+  }
+  /** Delete a principal within an org. */
+  async deletePrincipal(orgId, principalId) {
+    await this.request(
+      "DELETE",
+      `/orgs/${encodeURIComponent(orgId)}/principals/${encodeURIComponent(principalId)}`
+    );
+  }
+  /** Create a role within an org. */
+  async createRole(orgId, body) {
+    return this.request("POST", `/orgs/${encodeURIComponent(orgId)}/roles`, body);
+  }
+  /** List roles within an org. */
+  async listRoles(orgId) {
+    return this.request("GET", `/orgs/${encodeURIComponent(orgId)}/roles`);
+  }
+  /** Delete a role within an org. */
+  async deleteRole(orgId, roleName) {
+    await this.request(
+      "DELETE",
+      `/orgs/${encodeURIComponent(orgId)}/roles/${encodeURIComponent(roleName)}`
+    );
+  }
 };
 
 // src/cli.ts
-var server = process.env.SIRR_SERVER ?? "http://localhost:8080";
+var server = process.env.SIRR_SERVER ?? "http://localhost:39999";
 var token = process.env.SIRR_TOKEN ?? "";
 function usage() {
   console.error(`
@@ -248,7 +323,7 @@ Commands:
   keys remove <id>
 
 Environment:
-  SIRR_SERVER   Server URL (default: http://localhost:8080)
+  SIRR_SERVER   Server URL (default: http://localhost:39999)
   SIRR_TOKEN    Bearer token
 `);
   process.exit(1);

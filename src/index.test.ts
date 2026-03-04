@@ -29,7 +29,7 @@ function errHtml(status: number, html: string): Response {
   } as unknown as Response;
 }
 
-const sirr = new SirrClient({ server: "http://localhost:8080", token: "test" });
+const sirr = new SirrClient({ server: "http://localhost:39999", token: "test" });
 
 beforeEach(() => {
   mockFetch.mockReset();
@@ -130,7 +130,7 @@ describe("push", () => {
     await sirr.push("FOO", "bar", { ttl: 60, reads: 1 });
 
     const [url, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe("http://localhost:8080/secrets");
+    expect(url).toBe("http://localhost:39999/secrets");
     expect(opts.method).toBe("POST");
     expect(JSON.parse(opts.body as string)).toEqual({
       key: "FOO",
@@ -419,62 +419,62 @@ describe("deleteApiKey", () => {
 // ── Org-scoped path prefix ────────────────────────────────
 
 describe("org-scoped client", () => {
-  const orgSirr = new SirrClient({ server: "http://localhost:8080", token: "test", org: "acme" });
+  const orgSirr = new SirrClient({ server: "http://localhost:39999", token: "test", org: "acme" });
 
   it("push uses /orgs/{org}/secrets path", async () => {
     mockFetch.mockResolvedValueOnce(ok({ key: "FOO" }));
     await orgSirr.push("FOO", "bar");
     const [url] = mockFetch.mock.calls[0] as [string];
-    expect(url).toBe("http://localhost:8080/orgs/acme/secrets");
+    expect(url).toBe("http://localhost:39999/orgs/acme/secrets");
   });
 
   it("get uses /orgs/{org}/secrets/{key} path", async () => {
     mockFetch.mockResolvedValueOnce(ok({ key: "FOO", value: "bar" }));
     await orgSirr.get("FOO");
     const [url] = mockFetch.mock.calls[0] as [string];
-    expect(url).toBe("http://localhost:8080/orgs/acme/secrets/FOO");
+    expect(url).toBe("http://localhost:39999/orgs/acme/secrets/FOO");
   });
 
   it("list uses /orgs/{org}/secrets path", async () => {
     mockFetch.mockResolvedValueOnce(ok({ secrets: [] }));
     await orgSirr.list();
     const [url] = mockFetch.mock.calls[0] as [string];
-    expect(url).toBe("http://localhost:8080/orgs/acme/secrets");
+    expect(url).toBe("http://localhost:39999/orgs/acme/secrets");
   });
 
   it("delete uses /orgs/{org}/secrets/{key} path", async () => {
     mockFetch.mockResolvedValueOnce(ok({ deleted: true }));
     await orgSirr.delete("FOO");
     const [url] = mockFetch.mock.calls[0] as [string];
-    expect(url).toBe("http://localhost:8080/orgs/acme/secrets/FOO");
+    expect(url).toBe("http://localhost:39999/orgs/acme/secrets/FOO");
   });
 
   it("prune uses /orgs/{org}/prune path", async () => {
     mockFetch.mockResolvedValueOnce(ok({ pruned: 0 }));
     await orgSirr.prune();
     const [url] = mockFetch.mock.calls[0] as [string];
-    expect(url).toBe("http://localhost:8080/orgs/acme/prune");
+    expect(url).toBe("http://localhost:39999/orgs/acme/prune");
   });
 
   it("getAuditLog uses /orgs/{org}/audit path", async () => {
     mockFetch.mockResolvedValueOnce(ok({ events: [] }));
     await orgSirr.getAuditLog();
     const [url] = mockFetch.mock.calls[0] as [string];
-    expect(url).toBe("http://localhost:8080/orgs/acme/audit");
+    expect(url).toBe("http://localhost:39999/orgs/acme/audit");
   });
 
   it("createWebhook uses /orgs/{org}/webhooks path", async () => {
     mockFetch.mockResolvedValueOnce(ok({ id: "wh_1", secret: "s" }));
     await orgSirr.createWebhook("https://example.com/hook");
     const [url] = mockFetch.mock.calls[0] as [string];
-    expect(url).toBe("http://localhost:8080/orgs/acme/webhooks");
+    expect(url).toBe("http://localhost:39999/orgs/acme/webhooks");
   });
 
   it("deleteWebhook uses /orgs/{org}/webhooks/{id} path", async () => {
     mockFetch.mockResolvedValueOnce(ok({ deleted: true }));
     await orgSirr.deleteWebhook("wh_1");
     const [url] = mockFetch.mock.calls[0] as [string];
-    expect(url).toBe("http://localhost:8080/orgs/acme/webhooks/wh_1");
+    expect(url).toBe("http://localhost:39999/orgs/acme/webhooks/wh_1");
   });
 });
 
@@ -483,21 +483,21 @@ describe("non-org client paths", () => {
     mockFetch.mockResolvedValueOnce(ok({ key: "FOO" }));
     await sirr.push("FOO", "bar");
     const [url] = mockFetch.mock.calls[0] as [string];
-    expect(url).toBe("http://localhost:8080/secrets");
+    expect(url).toBe("http://localhost:39999/secrets");
   });
 
   it("prune uses /prune path", async () => {
     mockFetch.mockResolvedValueOnce(ok({ pruned: 0 }));
     await sirr.prune();
     const [url] = mockFetch.mock.calls[0] as [string];
-    expect(url).toBe("http://localhost:8080/prune");
+    expect(url).toBe("http://localhost:39999/prune");
   });
 
   it("getAuditLog uses /audit path", async () => {
     mockFetch.mockResolvedValueOnce(ok({ events: [] }));
     await sirr.getAuditLog();
     const [url] = mockFetch.mock.calls[0] as [string];
-    expect(url).toBe("http://localhost:8080/audit");
+    expect(url).toBe("http://localhost:39999/audit");
   });
 });
 
@@ -509,7 +509,7 @@ describe("me", () => {
     const result = await sirr.me();
     expect(result).toEqual({ id: "p_1", name: "alice" });
     const [url, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe("http://localhost:8080/me");
+    expect(url).toBe("http://localhost:39999/me");
     expect(opts.method).toBe("GET");
   });
 });
@@ -519,7 +519,7 @@ describe("updateMe", () => {
     mockFetch.mockResolvedValueOnce(ok({ id: "p_1", name: "bob" }));
     await sirr.updateMe({ name: "bob" });
     const [url, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe("http://localhost:8080/me");
+    expect(url).toBe("http://localhost:39999/me");
     expect(opts.method).toBe("PATCH");
   });
 });
@@ -529,7 +529,7 @@ describe("createKey", () => {
     mockFetch.mockResolvedValueOnce(ok({ id: "k_1", key: "sirr_key_abc" }));
     await sirr.createKey({ label: "ci" });
     const [url, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe("http://localhost:8080/me/keys");
+    expect(url).toBe("http://localhost:39999/me/keys");
     expect(opts.method).toBe("POST");
   });
 });
@@ -539,7 +539,7 @@ describe("deleteKey", () => {
     mockFetch.mockResolvedValueOnce(ok({}));
     await sirr.deleteKey("k_1");
     const [url, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe("http://localhost:8080/me/keys/k_1");
+    expect(url).toBe("http://localhost:39999/me/keys/k_1");
     expect(opts.method).toBe("DELETE");
   });
 });
@@ -552,7 +552,7 @@ describe("createOrg", () => {
     const result = await sirr.createOrg({ slug: "acme" });
     expect(result).toEqual({ id: "org_1", slug: "acme" });
     const [url, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe("http://localhost:8080/orgs");
+    expect(url).toBe("http://localhost:39999/orgs");
     expect(opts.method).toBe("POST");
   });
 });
@@ -562,7 +562,7 @@ describe("listOrgs", () => {
     mockFetch.mockResolvedValueOnce(ok({ orgs: [] }));
     await sirr.listOrgs();
     const [url, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe("http://localhost:8080/orgs");
+    expect(url).toBe("http://localhost:39999/orgs");
     expect(opts.method).toBe("GET");
   });
 });
@@ -572,7 +572,7 @@ describe("deleteOrg", () => {
     mockFetch.mockResolvedValueOnce(ok({}));
     await sirr.deleteOrg("org_1");
     const [url, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe("http://localhost:8080/orgs/org_1");
+    expect(url).toBe("http://localhost:39999/orgs/org_1");
     expect(opts.method).toBe("DELETE");
   });
 });
@@ -582,7 +582,7 @@ describe("createPrincipal", () => {
     mockFetch.mockResolvedValueOnce(ok({ id: "p_1" }));
     await sirr.createPrincipal("org_1", { name: "alice" });
     const [url, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe("http://localhost:8080/orgs/org_1/principals");
+    expect(url).toBe("http://localhost:39999/orgs/org_1/principals");
     expect(opts.method).toBe("POST");
   });
 });
@@ -592,7 +592,7 @@ describe("listPrincipals", () => {
     mockFetch.mockResolvedValueOnce(ok({ principals: [] }));
     await sirr.listPrincipals("org_1");
     const [url, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe("http://localhost:8080/orgs/org_1/principals");
+    expect(url).toBe("http://localhost:39999/orgs/org_1/principals");
     expect(opts.method).toBe("GET");
   });
 });
@@ -602,7 +602,7 @@ describe("deletePrincipal", () => {
     mockFetch.mockResolvedValueOnce(ok({}));
     await sirr.deletePrincipal("org_1", "p_1");
     const [url, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe("http://localhost:8080/orgs/org_1/principals/p_1");
+    expect(url).toBe("http://localhost:39999/orgs/org_1/principals/p_1");
     expect(opts.method).toBe("DELETE");
   });
 });
@@ -612,7 +612,7 @@ describe("createRole", () => {
     mockFetch.mockResolvedValueOnce(ok({ name: "admin" }));
     await sirr.createRole("org_1", { name: "admin", permissions: ["*"] });
     const [url, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe("http://localhost:8080/orgs/org_1/roles");
+    expect(url).toBe("http://localhost:39999/orgs/org_1/roles");
     expect(opts.method).toBe("POST");
   });
 });
@@ -622,7 +622,7 @@ describe("listRoles", () => {
     mockFetch.mockResolvedValueOnce(ok({ roles: [] }));
     await sirr.listRoles("org_1");
     const [url, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe("http://localhost:8080/orgs/org_1/roles");
+    expect(url).toBe("http://localhost:39999/orgs/org_1/roles");
     expect(opts.method).toBe("GET");
   });
 });
@@ -632,7 +632,7 @@ describe("deleteRole", () => {
     mockFetch.mockResolvedValueOnce(ok({}));
     await sirr.deleteRole("org_1", "admin");
     const [url, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe("http://localhost:8080/orgs/org_1/roles/admin");
+    expect(url).toBe("http://localhost:39999/orgs/org_1/roles/admin");
     expect(opts.method).toBe("DELETE");
   });
 });
