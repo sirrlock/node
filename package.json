@@ -41,7 +41,7 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "test": "jest",
-    "test:integration": "jest --testPathPatterns=integration --testTimeout=30000",
+    "test:integration": "jest --testPathIgnorePatterns /node_modules/ /dist/ --testPathPattern integration --testTimeout=30000",
     "lint": "biome check src/",
     "lint:fix": "biome check --write src/",
     "prepublishOnly": "npm run lint && npm run build && npm test"
@@ -62,6 +62,6 @@
   "jest": {
     "preset": "ts-jest",
     "testEnvironment": "node",
-    "testPathIgnorePatterns": ["/node_modules/", "/dist/"]
+    "testPathIgnorePatterns": ["/node_modules/", "/dist/", "integration\\.test"]
   }
 }
