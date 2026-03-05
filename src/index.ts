@@ -495,9 +495,7 @@ export class SirrClient {
 
     const readsRemainingRaw = res.headers.get("X-Sirr-Reads-Remaining");
     const readsRemaining: number | "unlimited" =
-      readsRemainingRaw === "unlimited"
-        ? "unlimited"
-        : Number(readsRemainingRaw ?? 0);
+      readsRemainingRaw === "unlimited" ? "unlimited" : Number(readsRemainingRaw ?? 0);
 
     const expiresAtRaw = res.headers.get("X-Sirr-Expires-At");
 

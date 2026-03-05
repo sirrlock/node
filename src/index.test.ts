@@ -474,7 +474,11 @@ describe("check", () => {
   });
 
   it("uses org-scoped path", async () => {
-    const orgSirr = new SirrClient({ server: "http://localhost:39999", token: "test", org: "acme" });
+    const orgSirr = new SirrClient({
+      server: "http://localhost:39999",
+      token: "test",
+      org: "acme",
+    });
     mockFetch.mockResolvedValueOnce(headOk(activeHeaders));
     await orgSirr.check("FOO");
     const [url] = mockFetch.mock.calls[0] as [string];
